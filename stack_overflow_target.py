@@ -90,7 +90,7 @@ if cmd == "-h" or cmd == "--help":
   printUsage()
   exit(0)
 
-if cmd != "generate" or cmd != "find":
+if cmd != "generate" and cmd != "find":
   print("Error: unrecognised command " + cmd)
   printUsage()
   exit(1)
@@ -99,6 +99,7 @@ for i in range(2, argc):
   arg = sys.argv[i]
   if arg == '-l' or arg == "--little":
     little = True
+
   if i == last: break
 
   if arg == "-s" or arg == "--size":
@@ -110,11 +111,6 @@ for i in range(2, argc):
   elif arg == "-h" or arg == "--help":
     printUsage()
     exit(0)
-  else:
-    print("Error: Unrecognised flag " + arg)
-    printUsage()
-    exit(1)
-    
     
 
 

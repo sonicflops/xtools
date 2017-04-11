@@ -12,6 +12,7 @@ def printUsage():
   print("\t-s      as string")
   print("\t-v VAR  include variable assignment to VAR")
   print("\t-x      extract .text with objcopy")
+  print("\t-n NUM  nop sled into shellcode")
   print("\t-h      Print this message")
 
 
@@ -20,6 +21,7 @@ last = argc - 1
 out = ""
 var = ""
 extract = False
+nops = 0
 
 
 if last == 0:
@@ -43,6 +45,9 @@ for i in  range(0,argc):
   if argv[i] == '-v':
     i = i + 1
     var = argv[i]
+  elif argv[i] == '-n':
+    i = i + 1
+    nops = int(argv[i])
 
 fpath = getcwd()+"/"+argv[last]
 
@@ -61,8 +66,12 @@ if var:
 
 if export == EXPORT_BYTE:
   out = out + "{";
+  for i in range(0,nops):
+    out = out + "0x90,"
 elif export == EXPORT_STRING:
   out = out + "\""
+  for i in range(0,nops):
+    out = out + "\\x90"
 
 first = True
 flen = 0
@@ -90,3 +99,5 @@ print(out)
 
 
 stderr.write("{} bytes\n".format(flen))
+if nops:
+  stderr.write("{} bytes with sled\n".format(flen + nops))
