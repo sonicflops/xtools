@@ -23,6 +23,17 @@ def ascii_to_bytes(bstr, keep_endian):
   return list( reversed(out) ) if not keep_endian else list(out)
 
 
+def output_python(size, junk, seq_bytes):
+  seq_str =  '+"{}"'.format("".join(map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ))) if args.sequence else ""
+  return '"\\x{}"*{}'.format(junk,  size) + seq_str
+
+def output_cstr(size, junk, seq_bytes):
+  return '"{}"'.format( "".join( [ "\\x{:02x}".format( junk ) ] * size + map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ) ) )
+
+def output_cbyte(size, junk, seq_bytes):
+  return '{{{}}}'.format( ",".join( [ "0x{:02x}".format( junk ) ] * size + map(lambda b: "0x{:02x}".format( b ),  seq_bytes ) ) )
+
+
 parser = argparse.ArgumentParser(description='Generate data to overflow a stack and, optionally, write the bytes at particular offset. The byte sequence will be rearrange into little endian unless told otherwise')
 
 parser.add_argument('size', metavar='SIZE', type=int,
@@ -41,13 +52,13 @@ parser.add_argument('-ia', '--input-ascii', dest='conv', action="store_const", c
                     help='The byte sequence is an ASCII string')
 
 
-parser.add_argument('-op', '--output-python', dest='output', default='python', action="store_const", const='python',
+parser.add_argument('-op', '--output-python', dest='output', default=output_python, action="store_const", const=output_python,
                     help='Specify output format as expandable python (default)')
 
-parser.add_argument('-os', '--output-cstr', dest='output', action="store_const", const='cstr',
+parser.add_argument('-os', '--output-cstr', dest='output', action="store_const", const=output_cstr,
                     help='Specify output as an expanded C style string')
 
-parser.add_argument('-ob', '--output-cbyte', dest='output', action="store_const", const='cbyte' ,
+parser.add_argument('-ob', '--output-cbyte', dest='output', action="store_const", const=output_cbyte ,
                     help='Specify output as an expanded C style byte array')
 
 
@@ -65,20 +76,10 @@ args = parser.parse_args()
 
 
 
-str_out = ""
-junk_int = int(args.junk, 16)
-seq_bytes =args.conv(args.sequence, args.keep)
 
-
-if args.output == 'python':
-  seq_str =  '+"{}"'.format("".join(map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ))) if args.sequence else ""
-  str_out = '"\\x{}"*{}'.format(args.junk,  args.size) + seq_str
-elif args.output == 'cstr':
-  str_out = '"{}"'.format( "".join( [ "\\x{:02x}".format( junk_int ) ] * args.size + map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ) ) )
-elif args.output == 'cbyte':
-  str_out = '{{{}}}'.format( ",".join( [ "0x{:02x}".format( junk_int ) ] * args.size + map(lambda b: "0x{:02x}".format( b ),  seq_bytes ) ) )
+str_out = args.output(args.size, int(args.junk, 16), args.conv(args.sequence, args.keep) )
 
 if args.var:
-  str_out = "{}={};".format(args.var, str_out)
+  str_out = "{}={}".format(args.var, str_out)
 
 print(str_out)
