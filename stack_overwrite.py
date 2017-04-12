@@ -1,98 +1,59 @@
 #!/usr/bin/env python
-import sys, base64, fileinput
+import argparse
 
-def stringBytesToIntArray(bstr, little = False):
-  interim  = []
-  a = []
-  for i in range(0, len(bstr), 2):
-    interim.append( "".join(bstr[i:i+2]) )
 
-  interim = interim if little == False else list(reversed(interim))
+parser = argparse.ArgumentParser(description='Generate data to overflow a stack and, optionally, write 8-bit hexidecimal bytes at particular offset')
 
-  for i in range(0, len(interim)):
-    a.append( int(interim[i], 16) )
+parser.add_argument('size', metavar='SIZE', type=int,
+                    help='The size to overwrite')
 
-  return a
+parser.add_argument('sequence', metavar='SEQ', nargs='?', default='',
+                    help='The hexidecimal byte sequence to place at offset SIZE')
 
-def generateOverflowSeq(offset, pattern, little = False, junk = "0"):
-  hexPattern = map( lambda p: stringBytesToIntArray(p, little),  pattern )
-  output = []
-  for _ in range(0, offset):
-    output.append(int(junk,16))
-  output = output + reduce( lambda p1,p2: p1 + p2, hexPattern ) 
+parser.add_argument('-op', '--output-python', dest='output', default='python', action="store_const", const='python',
+                    help='Specify output format as expandable python (default)')
 
-  return output
-  
-def printUsage():
-  print("usage: stack_overwrite.py OFFSET PATTERN [PATTERN ...] [opts]")
-  print("\t-l, --little     Reformat PATTERN into little endian")
-  print("\t-b64, --base64   Convert output to base64")
-  print("\t-j, --junk       Junk byte to use for padding")
-  print("\t-h, --help       Print this message")
-  print("\t-s, --string     Print as string")
-size = 0
-pattern = []
-little = False
-b64 = False
-out = "bin"
-junk = "0"
+parser.add_argument('-os', '--output-cstr', dest='output', action="store_const", const='cstr',
+                    help='Specify output as an expanded C style string')
 
-argc = len(sys.argv)
-last = argc-1
+parser.add_argument('-ob', '--output-cbyte', dest='output', action="store_const", const='cbyte' ,
+                    help='Specify output as an expanded C style byte array')
 
-if argc == 2 and (sys.argv[1] == '-h' or sys.argv[1] == '--help'):
-  printUsage();
-  exit(0)
+parser.add_argument('-j', '--junk', dest='junk', action="store", default="00",
+                    help='Set the hexadecimal junk value')
 
-if argc < 3:
-  printUsage()
-  exit(1)
+parser.add_argument('-v', '--var', dest='var', action="store", default="",
+                    help='Assign output to a variable')
 
-offset = int(sys.argv[1])
-pattern.append(sys.argv[2])
 
-argi = 0
+args = parser.parse_args()
 
-for argi in range(3,argc):
-  arg = sys.argv[argi]
-  if arg[0] == '-':
-    break
-  
-  if arg[0] == "\\":
-    arg = arg[1:]
 
-  pattern.append(arg)
 
-for i in range(argi,argc):
-  arg = sys.argv[i]
-  if arg == "-l" or arg == "--little":
-    little = True
-  elif arg == "-b64" or arg == "--base64":
-    b64 = True
-  elif arg == "-s" or arg == "--string":
-    out = "string"
-  elif arg == "-h" or arg == "--help":
-    printUsage()
-    exit(0)
 
-  if i == last:
-    break
-  
-  if arg == "-j" or arg == "--junk":
-    i = i + 1
-    if sys.argv[i] == "":
-      continue
+def to_bytes(bstr):
+  out = []
+  step = 2
+  inc = 2
 
-    junk = sys.argv[i]
-    
+  for i in range( 0, len(bstr), step ):
+    out.append( int( bstr[i:i+inc], 16 ) )
 
-binVals = generateOverflowSeq(offset,pattern,little, junk)
-strVals = "".join( chr(x) for x in binVals )
+  return list( reversed(out) )
 
-if b64 == True:
-  print( base64.b64encode(strVals) )
-else:
-  if out == "bin":
-    print( strVals  )
-  elif out == "string":
-    print( "\"" + "".join( "\\x{:02x}".format(x) for x in binVals ) + "\"")
+str_out = ""
+junk_int = int(args.junk, 16)
+seq_bytes = to_bytes(args.sequence)
+
+
+if args.output == 'python':
+  seq_str =  '+"{}"'.format("".join(map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ))) if args.sequence else ""
+  str_out = '"\\x{}"*{}'.format(args.junk,  args.size) + seq_str
+elif args.output == 'cstr':
+  str_out = '"{}"'.format( "".join( [ "\\x{:02x}".format( junk_int ) ] * args.size + map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ) ) )
+elif args.output == 'cbyte':
+  str_out = '{{{}}}'.format( ",".join( [ "0x{:02x}".format( junk_int ) ] * args.size + map(lambda b: "0x{:02x}".format( b ),  seq_bytes ) ) )
+
+if args.var:
+  str_out = "{}={};".format(args.var, str_out)
+print(str_out)

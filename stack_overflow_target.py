@@ -9,17 +9,12 @@ def generatePattern(size):
   upper = 0x41
   numeric = 0x30
   phase = 0
-
-  for i in range(0,size):
-    if phase == 0:
-      pattern.append(upper)
-      phase = 1
-    elif phase == 1:
-      pattern.append(lower)
-      phase = 2
-    elif phase == 2:
-      pattern.append(numeric)
-      phase = 0
+  diff = size % 3
+  rounded = size + (3-diff)
+  for i in range(0, rounded):
+    pattern.append(upper)
+    pattern.append(lower)
+    pattern.append(numeric)
 
     numeric = numeric + 1 if numeric < 0x39 else 0x30
     if numeric == 0x30:
@@ -27,18 +22,21 @@ def generatePattern(size):
       if lower == 0x61:
         upper = upper + 1  if upper < 0x61 else 0x41
 
-  return pattern
+  return pattern[:size]
 
-def stringBytesToIntArray(bstr, little = False):
+def stringBytesToIntArray(bstr, ptype):
+
   interim  = []
   a = []
-  for i in range(0, len(bstr), 2):
-    interim.append( "".join(bstr[i:i+2]) )
-
-  interim = interim if little == False else list(reversed(interim))
-
-  for i in range(0, len(interim)):
-    a.append( int(interim[i], 16) )
+  if ptype == 'memory':
+    for i in range(0, len(bstr), 2):
+      interim.append( "".join(bstr[i:i+2]) )
+    interim = list(reversed(interim))
+    for i in range(0, len(interim)):
+      a.append( int(interim[i], 16) )
+  else:
+    for c in bstr:
+      a.append(ord(c))
 
   return a
 
@@ -64,63 +62,64 @@ def findSequence(needle, haystack, little = False):
 def printUsage():
   print("usage: stack_overflow_target.py command [-opts]")
   print("command:")
-  print("\tgenerate   Generate a pattern of given size")
-  print("\tfind       Find offset of sequence in pattern")
+  print("\tgenerate SIZE       Generate a pattern of given size")
+  print("\tfind SIZE PATTERN   Find offset of pattern")
   print("\nopts:")
-  print("\t-s, --size BYTES    Generate pattern to size BYTES")
-  print("\t-p, --pattern PAT   sequence PAT to find in pattern")
-  print("\t-l, --little        little-endian sequence pattern")
+  print("\t-m, --memory        Convert pattern from memory dump")
+  print("\t-s, --string        Convert pattern to string")
   print("\t-h, --help          Print this message")
     
 
 size = 0
 pattern = ""
-little = False
+ptype = 'memory'
 
 argc = len(sys.argv)
-last = argc-1
+last = argc-2
 
 if last == 0:
   printUsage()
   exit(1)
 
 cmd = sys.argv[1]
+size = int(sys.argv[2])
+
 
 if cmd == "-h" or cmd == "--help":
   printUsage()
   exit(0)
+
 
 if cmd != "generate" and cmd != "find":
   print("Error: unrecognised command " + cmd)
   printUsage()
   exit(1)
 
-for i in range(2, argc):
+if cmd == "find":
+  pattern = sys.argv[3]
+
+
+for i in range(4, argc):
   arg = sys.argv[i]
-  if arg == '-l' or arg == "--little":
-    little = True
+  if arg == '-m' or arg == "--memory":
+    ptype = 'memory'
+  elif arg == '-s' or arg == '--string':
+    ptype = 'string'
 
   if i == last: break
 
-  if arg == "-s" or arg == "--size":
-    i = i + 1;
-    size = int(sys.argv[i])
-  elif arg == "-p" or arg == "--pattern":
-    i = i + 1;
-    pattern = sys.argv[i]
-  elif arg == "-h" or arg == "--help":
+  if arg == "-h" or arg == "--help":
     printUsage()
     exit(0)
     
-
 
 if cmd == "generate":
   print("".join(chr(x) for x in generatePattern(size)))
 elif cmd == "find":
 
-  b = findSequence(pattern, generatePattern(size), little) 
+  b = findSequence(pattern, generatePattern(size), ptype) 
   if b > -1:
-    print("Byte offset: {}".format(b))
+    print("[{}] Byte offset: {}".format(ptype,b))
   else:
-    print("Sequence not found")
+    print("[{}] Sequence `{}` not found".format(ptype,pattern))
   
