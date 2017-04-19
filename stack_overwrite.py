@@ -14,10 +14,6 @@ def hex_to_bytes(bstr, keep_endian):
 
   
 def ascii_to_bytes(bstr, keep_endian):
-  out = []
-  step = 2
-  inc = 2
-
   out = map( lambda b: ord(b),  bstr)
 
   return list( reversed(out) ) if not keep_endian else list(out)
@@ -25,7 +21,7 @@ def ascii_to_bytes(bstr, keep_endian):
 
 def output_python(size, junk, seq_bytes):
   seq_str =  '+"{}"'.format("".join(map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ))) if args.sequence else ""
-  return '"\\x{}"*{}'.format(junk,  size) + seq_str
+  return '"\\x{:02x}"*{}'.format(junk,  size) + seq_str
 
 def output_cstr(size, junk, seq_bytes):
   return '"{}"'.format( "".join( [ "\\x{:02x}".format( junk ) ] * size + map(lambda b: "\\x{:02x}".format( b ),  seq_bytes ) ) )
@@ -34,7 +30,7 @@ def output_cbyte(size, junk, seq_bytes):
   return '{{{}}}'.format( ",".join( [ "0x{:02x}".format( junk ) ] * size + map(lambda b: "0x{:02x}".format( b ),  seq_bytes ) ) )
 
 
-parser = argparse.ArgumentParser(description='Generate data to overflow a stack and, optionally, write the bytes at particular offset. The byte sequence will be rearrange into little endian unless told otherwise')
+parser = argparse.ArgumentParser(description='Generate data to overflow a stack and, optionally, write some bytes at particular offset. The byte sequence will be rearrange into little endian unless told otherwise')
 
 parser.add_argument('size', metavar='SIZE', type=int,
                     help='The size to overwrite')
